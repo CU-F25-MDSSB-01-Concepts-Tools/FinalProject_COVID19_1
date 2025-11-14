@@ -1,0 +1,80 @@
+---
+title: "Your Project Title"
+subtitle: "Put subtitle here if you want or remove if not needed"
+author: 
+  - One Author's Name (REPLACE)
+  - Another Author's Name (REPLACE)
+abstract: "Executive Summary. <!--For the final version: Write an executive summary here. Write it when you are mostly finished with the main report. It should summarize the question, with what data and how you answer it, and what the result is.-->"
+format:   
+  html: 
+    toc: true
+    toc-depth: 3
+    standalone: true
+    embed-resources: true
+    code-fold: true
+    number-sections: true
+---
+
+## Introduction
+
+<!-- 
+In this section describe: 
+- What is the research question(s) you want to answer and why?
+- With what data you want to answer the question?
+- Where does the data come from, how was it collected?
+--> 
+
+This text will be replace by your introduction.
+
+## Data 
+
+<!-- Put the dataset you want to use into this repository and import it in a chunk here. Describe the relevant aspects of the data here. Also some basic data preparation can already happen here. 
+
+Important: If the dataset is very huge than committing and pushing it may be a problem. In this case do not provide the data but provide a download script or download instructions and loading instructions. 
+-->
+
+This text will be replace by your text about data import.
+
+```{r}
+#| label: data-import
+
+# Import your data here. 
+```
+
+## Analysis
+
+<!--
+In this section: 
+Text describing the steps of analysis and some well crafted code chunks with visualization(s) and statistical analyses that assesses the research questions.
+-->
+  
+This text will be replaced by your analysis.   
+
+```{r}
+#| label: visualization
+
+# Make a least one visualization here. Make more if needed (usually the case).
+```
+
+  
+```{r}
+#| label: analysis
+
+# Make a statistical analysis (e.g. a model) here. 
+```
+
+<!-- There can be more chunks of your choice-->
+
+
+## Conclusion
+
+<!-- 
+In this section: 
+Derive answers to the question from your analysis
+Identify limitations of your analysis
+How reliable are your answers? 
+-->
+
+This text will be replaced by your conclusions. 
+
+
