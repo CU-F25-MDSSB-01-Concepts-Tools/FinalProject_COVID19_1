@@ -1,0 +1,363 @@
+---
+title: "Your Project Title"
+subtitle: "Put subtitle here if you want or remove if not needed"
+author: 
+  - One Author's Name (REPLACE)
+  - Another Author's Name (REPLACE)
+abstract: "Executive Summary. <!--For the final version: Write an executive summary here. Write it when you are mostly finished with the main report. It should summarize the question, with what data and how you answer it, and what the result is.-->"
+format:   
+  html: 
+    toc: true
+    toc-depth: 3
+    standalone: true
+    embed-resources: true
+    code-fold: true
+    number-sections: true
+---
+```{css}
+/* Global text justification */
+p, li, td {
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+/* Keep headings left-aligned */
+h1, h2, h3, h4, h5, h6 {
+  text-align: left !important;
+}
+```
+
+
+## Introduction
+
+<!-- 
+In this section describe: 
+- What is the research question(s) you want to answer and why?
+- With what data you want to answer the question?
+- Where does the data come from, how was it collected?
+--> 
+
+This text will be replace by your introduction.
+
+## Data 
+
+### Data Sources and Preparation
+
+Our analysis integrates two datasets:
+
+1. **COVID-19 Data**: Daily new cases and deaths from the WHO COVID-19 database, covering the period from January to August 2020 (first wave).
+
+2. **Socioeconomic Indicators**: Country-level socioeconomic data from the World Bank's WDI, including GDP per capita, life expectancy, population density, elderly population percentage, physician density, and urbanization rates.
+
+### Data Processing Steps
+
+```{r}
+#| label: data-import
+#| warning: false
+#| message: false
+
+# Load required libraries
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+
+# Import WHO COVID-19 data
+who <- read_csv("WHO-COVID-19.csv")
+
+# Import and clean World Bank WDI data
+wdi_clean <- read_csv("WDI.csv") %>%
+  rename(
+    urban_pop = `Urban population (% of total population)`,
+    rural_pop = `Rural population (% of total population)`,
+    pop_total = `Population, total`,
+    pop_older65 = `Population ages 65 and above (% of total population)`,
+    pop_density = `Population density (people per sq. km of land area)`,
+    physicians_per_1000 = `Physicians (per 1,000 people)`,
+    life_expectancy = `Life expectancy at birth, total (years)`,
+    gdp_per_capita = `GDP per capita, PPP (current international $)`
+  ) %>%
+  select(country, urban_pop, rural_pop, pop_total, pop_older65, 
+         pop_density, physicians_per_1000, life_expectancy, gdp_per_capita)
+
+# Calculate severity measure: peak cases per million during first wave
+wave1_severity <- who %>%
+  filter(Date_reported <= as.Date("2020-08-31")) %>%
+  group_by(Country) %>%
+  summarise(
+    peak_cases = max(New_cases, na.rm = TRUE),
+    total_cases = sum(New_cases, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  inner_join(wdi_clean, by = c("Country" = "country")) %>%
+  mutate(
+    # Main dependent variable: peak cases per million
+    peak_cases_per_million = (peak_cases / pop_total) * 1000000,
+    # Binary classification variable (High vs Low severity)
+    severity_binary = ifelse(peak_cases_per_million > median(peak_cases_per_million, na.rm = TRUE), 
+                             "High", "Low") %>% factor(levels = c("Low", "High"))
+  ) %>%
+  filter(!is.na(peak_cases_per_million) & !is.na(gdp_per_capita) & 
+           !is.na(life_expectancy) & !is.na(pop_density))
+
+```
+
+```{r}
+#| label: dataset-info
+#| echo: FALSE
+#| tbl-cap: "Dataset Information"
+
+data.frame(
+  Metric = c("Number of Countries", "Number of Variables", 
+             "Time Period", "Severity Measure"),
+  Value = c(
+    nrow(wave1_severity),
+    length(names(wave1_severity)),
+    "January 1 - August 31, 2020",
+    "Peak cases per million population"
+  )
+) %>% 
+  knitr::kable()
+```
+
+## Analysis
+
+### Exploratory Data Analysis
+
+```{r}
+#| label: exploratory-analysis
+#| warning: FALSE
+#| message: FALSE
+#| fig-height: 6
+#| fig-width: 10
+
+# Summary statistics of key variables
+summary_stats <- wave1_severity %>%
+  select(peak_cases_per_million, gdp_per_capita, life_expectancy, 
+         pop_density, pop_older65, physicians_per_1000) %>%
+  summary()
+
+# Distribution of peak cases per million
+p1 <- ggplot(wave1_severity, aes(x = peak_cases_per_million)) +
+  geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+  labs(title = "Distribution of Peak COVID-19 Cases per Million",
+       x = "Peak Cases per Million", y = "Frequency") +
+  theme_minimal()
+
+# Relationship between GDP and peak cases
+p2 <- ggplot(wave1_severity, aes(x = gdp_per_capita, y = peak_cases_per_million)) +
+  geom_point(alpha = 0.6, color = "firebrick") +
+  geom_smooth(method = "lm", se = FALSE, color = "darkblue") +
+  labs(title = "GDP vs. Peak COVID-19 Cases",
+       x = "GDP per Capita (PPP, international $)",
+       y = "Peak Cases per Million") +
+  theme_minimal()
+
+# Display plots
+p1
+p2
+
+```
+
+**Data Overview:** The analysis examines `r nrow(wave1_severity)` countries during the first COVID-19 wave. Key variables include:
+
+```{r}
+#| echo: FALSE
+#| results: asis
+
+cat("| Variable | Role | Mean Value |\n")
+cat("|----------|------|------------|\n")
+cat("| peak_cases_per_million | Outcome |", round(mean(wave1_severity$peak_cases_per_million), 1), "|\n")
+cat("| gdp_per_capita | Predictor | $", round(mean(wave1_severity$gdp_per_capita), 0), "|\n")
+cat("| pop_older65 | Predictor |", round(mean(wave1_severity$pop_older65, na.rm = TRUE), 1), "% |\n")
+cat("| severity_binary | Classification |", sum(wave1_severity$severity_binary == "High"), "High,", sum(wave1_severity$severity_binary == "Low"), "Low |\n")
+
+```
+
+### Regression Tree Analysis
+```{r}
+#| label: regression-tree
+#| fig-height: 8
+#| fig-width: 12
+
+# Build regression tree for continuous outcome
+tree_reg <- rpart(
+  peak_cases_per_million ~ gdp_per_capita + life_expectancy + physicians_per_1000 +
+    pop_older65 + urban_pop + pop_density,
+  data = wave1_severity,
+  method = "anova",
+  control = rpart.control(
+    minsplit = 10,
+    minbucket = 5,
+    cp = 0.01,
+    maxdepth = 5,
+    xval = 10
+  )
+)
+
+# Visualize regression tree
+rpart.plot(tree_reg, 
+           main = "Regression Tree: Peak COVID-19 Cases per Million",
+           box.palette = "Blues",
+           type = 3,
+           extra = 101,
+           digits = -2,
+           fallen.leaves = FALSE)
+
+# Variable importance from regression tree
+importance_reg <- data.frame(
+  Variable = names(tree_reg$variable.importance),
+  Importance = tree_reg$variable.importance
+) %>%
+  arrange(desc(Importance)) %>%
+  mutate(Relative_Importance = Importance / max(Importance) * 100)
+
+```
+
+```{r}
+#| label: reg-importance
+#| echo: FALSE
+#| tbl-cap: "Regression Tree Variable Importance"
+
+importance_reg %>%
+  rename(
+    "Variable" = Variable,
+    "Importance Score" = Importance,
+    "Relative Importance (%)" = Relative_Importance
+  ) %>%
+  mutate(`Relative Importance (%)` = round(`Relative Importance (%)`, 1)) %>%
+  knitr::kable(align = c("l", "r", "r"))
+```
+
+### Classification Tree Analysis
+
+```{r}
+#| label: classification-tree
+#| fig-height: 8
+#| fig-width: 12
+
+# Build classification tree for binary outcome
+tree_class <- rpart(
+  severity_binary ~ gdp_per_capita + life_expectancy + physicians_per_1000 +
+    pop_older65 + urban_pop + pop_density,
+  data = wave1_severity,
+  method = "class",
+  parms = list(split = "gini"),
+  control = rpart.control(
+    minsplit = 10,
+    minbucket = 5,
+    cp = 0.01,
+    maxdepth = 4,
+    xval = 10
+  )
+)
+
+# Visualize classification tree
+rpart.plot(tree_class,
+           main = "Classification Tree: COVID-19 Severity (High/Low)",
+           box.palette = "OrRd",
+           type = 3,
+           extra = 104,
+           digits = 2,
+           fallen.leaves = TRUE)
+
+# Model evaluation
+predictions <- predict(tree_class, type = "class")
+conf_matrix <- table(Actual = wave1_severity$severity_binary, 
+                     Predicted = predictions)
+
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+sensitivity <- conf_matrix[2, 2] / sum(conf_matrix[2, ])
+specificity <- conf_matrix[1, 1] / sum(conf_matrix[1, ])
+
+```
+
+```{r}
+#| label: class-performance
+#| echo: FALSE
+#| tbl-cap: "Classification Tree Performance Metrics"
+
+# Performance metrics dataframe
+perf_metrics <- data.frame(
+  Metric = c(
+    "Overall Accuracy",
+    "Sensitivity (Recall)",
+    "Specificity", 
+    "Precision (High)",
+    "Precision (Low)",
+    "F1-Score (High)",
+    "F1-Score (Low)"
+  ),
+  Formula = c(
+    "(TP+TN)/Total",
+    "TP/(TP+FN)",
+    "TN/(TN+FP)",
+    "TP/(TP+FP)",
+    "TN/(TN+FN)",
+    "2*(Precision*Recall)/(Precision+Recall)",
+    "2*(Precision*Recall)/(Precision+Recall)"
+  ),
+  Value = c(
+    paste0(round(accuracy * 100, 2), "%"),
+    paste0(round(sensitivity * 100, 2), "%"),
+    paste0(round(specificity * 100, 2), "%"),
+    paste0(round(conf_matrix[2,2] / sum(conf_matrix[,2]), 2) * 100, "%"),
+    paste0(round(conf_matrix[1,1] / sum(conf_matrix[,1]), 2) * 100, "%"),
+    paste0(round(2 * ((conf_matrix[2,2]/sum(conf_matrix[,2])) * sensitivity) / 
+                   ((conf_matrix[2,2]/sum(conf_matrix[,2])) + sensitivity) * 100, 1), "%"),
+    paste0(round(2 * ((conf_matrix[1,1]/sum(conf_matrix[,1])) * specificity) / 
+                   ((conf_matrix[1,1]/sum(conf_matrix[,1])) + specificity) * 100, 1), "%")
+  ),
+  Interpretation = c(
+    "Overall correct predictions",
+    "High-severity detection rate",
+    "Low-severity identification rate",
+    "High predictions that were correct",
+    "Low predictions that were correct",
+    "Balance of precision & recall for High",
+    "Balance of precision & recall for Low"
+  )
+)
+
+knitr::kable(perf_metrics, align = c("l", "l", "r", "l"))
+```
+
+### Comparative Analysis
+
+```{r}
+#| label: comparative-analysis
+#| fig-height: 7
+#| fig-width: 10
+
+# Compare variable importance between models
+importance_combined <- bind_rows(
+  importance_reg %>% mutate(Tree_Type = "Regression"),
+  data.frame(
+    Variable = names(tree_class$variable.importance),
+    Importance = tree_class$variable.importance,
+    Relative_Importance = tree_class$variable.importance / max(tree_class$variable.importance) * 100
+  ) %>% mutate(Tree_Type = "Classification")
+)
+
+# Visualization of comparative importance
+ggplot(importance_combined, aes(x = reorder(Variable, Relative_Importance), 
+                                y = Relative_Importance, fill = Tree_Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  labs(title = "Variable Importance: Regression vs. Classification Trees",
+       x = "Predictor Variable",
+       y = "Relative Importance (%)",
+       fill = "Tree Type") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2")
+
+```
+
+Our comparative analysis reveals distinct predictor importance across models. The regression tree prioritizes `r importance_reg$Variable` for predicting exact case numbers, while the classification tree uses `r names(sort(tree_class$variable.importance, decreasing = TRUE))` to categorize country risk levels. Overall, the classification approach achieves `r round(accuracy * 100, 1)`% prediction accuracy.
+
+## Conclusion
+
+This study of 167 countries shows that social and economic factors explain differences in how severe the first wave of COVID-19 was. The percentage of people aged 65 and over was the most important factor, followed by GDP per person and how urban a country is. Our classification tree model had an accuracy of 79.04%, and it was very good at identifying countries with high severity, with a sensitivity of 97.53%.
+
+These results suggest that demographic and economic characteristics can help prepare for pandemics. Countries with older populations and higher GDP might need to take action earlier. Although our models worked well, there are some limits, such as differences in data quality and other factors we did not measure, like government policies.
+
+Tree-based methods provide both clear understanding and good accuracy for assessing public health risks. They offer useful information for planning in future pandemics.
