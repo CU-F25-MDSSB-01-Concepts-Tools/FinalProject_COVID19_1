@@ -1,0 +1,91 @@
+---
+title: "Impact of Vaccination Rates on COVID-19 Deaths"
+author: "Nokwanele Pretty"
+format: html
+---
+
+## Introduction
+
+The COVID-19 pandemic had a major impact on public health systems across the world, leading to large numbers of infections, hospitalisations, and deaths. Since the start of the pandemic in early 2020, countries have experienced multiple waves of COVID-19, each with varying levels of severity. Understanding how COVID-19 death rates changed over time is important for evaluating the progression of the pandemic and the effectiveness of public health responses.
+
+### Research Question
+The main research question addressed in this project is:
+
+**How did new COVID-19 death rates change globally between 2020 and 2022?**
+
+This question is important because it helps to identify periods of high mortality and provides insight into how the impact of COVID-19 evolved over time.
+
+### Data Used
+To answer the research question, this project uses the **WHO COVID-19 Global Dataset**. The dataset contains daily, country-level information on reported COVID-19 cases and deaths.
+
+The key variables used in this analysis include:
+- `Date_reported` – the date when cases and deaths were reported  
+- `Country` – the country reporting the data  
+- `New_deaths` – the number of new COVID-19 deaths reported each day  
+
+### Data Source and Collection
+The data was obtained from the **World Health Organization (WHO)**, which collects COVID-19 statistics from national health authorities around the world. Countries report their daily COVID-19 cases and deaths to the WHO using standardized reporting systems. The WHO then compiles, cleans, and publishes the data to ensure consistency and comparability across countries.
+
+Overall, this dataset provides a reliable and widely used source for analysing global COVID-19 mortality trends over time.
+
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+covid <- read_csv("WHO-COVID-19.csv")
+head(covid)
+```
+
+```{r}
+covid_clean <- covid %>%
+  select(
+    Date_reported,
+    Country,
+    New_deaths
+  ) %>%
+  drop_na() %>%
+  mutate(Date_reported = as.Date(Date_reported))
+```
+
+```{r}
+covid_2020_2022 <- covid_clean %>%
+  filter(
+    Date_reported >= as.Date("2020-01-01"),
+    Date_reported <= as.Date("2022-12-31")
+  )
+```
+
+```{r}
+ggplot(covid_2020_2022,
+       aes(x = Date_reported, y = New_deaths)) +
+  geom_line(color = "purple", alpha = 0.6) +
+  geom_smooth(color = "orange", se = FALSE) +
+  labs(
+    title = "New COVID-19 Deaths Over Time (WHO data, 2020–2022)",
+    x = "Date",
+    y = "New deaths"
+  ) +
+  theme_light()
+```
+
+## Interpretation
+
+The graph shows the trend of new COVID-19 deaths reported globally between 2020 and 2022 using WHO data. At the beginning of 2020, the number of deaths was relatively low, as the pandemic had just started and was limited to fewer regions. As time progressed, the graph shows several sharp increases in new deaths, which correspond to major waves of COVID-19 infections.
+
+The most noticeable peaks occur during 2021 and early 2022. These peaks likely reflect periods when more contagious variants of the virus were spreading and healthcare systems in many countries were under pressure. After each peak, there is a decline in new deaths, suggesting that control measures, improved treatment, and increased public awareness helped reduce mortality over time.
+
+Towards the end of 2022, the graph shows lower and more stable levels of new deaths compared to earlier years. This indicates that although COVID-19 was still present, its impact in terms of daily deaths had reduced. Overall, the graph highlights how COVID-19 mortality changed over time and clearly shows the wave-like nature of the pandemic.
+
+## Conclusion
+
+This project analysed global COVID-19 death trends between 2020 and 2022 using data from the World Health Organization (WHO). The analysis showed that COVID-19 mortality changed significantly over time, with several clear peaks that correspond to major waves of the pandemic.
+
+The results indicated that the highest numbers of new deaths occurred during 2021 and early 2022, reflecting periods when the virus was spreading rapidly and healthcare systems in many countries were under pressure. Following these peaks, a general decline in new deaths was observed, suggesting improvements in pandemic management, treatment strategies, and public health responses.
+
+Towards the end of 2022, COVID-19 death rates became lower and more stable compared to earlier phases of the pandemic. Although COVID-19 did not disappear completely, its impact in terms of daily reported deaths was reduced.
+
+Overall, this analysis highlights the wave-like nature of the COVID-19 pandemic and demonstrates how global mortality trends evolved over time. The findings emphasize the importance of continuous monitoring of public health data to better understand and respond to future global health crises.
+
+
