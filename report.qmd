@@ -73,11 +73,8 @@ wdi <- read_csv("WDI.csv") %>%
 **Dataset Characteristics:**
 
 COVID-19 Data: Daily cases and deaths from WHO (2020-2022)
-
 Socioeconomic Data: Country-level indicators from World Bank
-
 Time Period: Analysis covers different periods based on research questions
-
 Country Coverage: 167+ countries with complete data
 
 ## Analysis
@@ -574,7 +571,7 @@ The visualizations reveal complex mediation patterns in health system capacity u
    - Medium-capacity group (50 countries): Intermediate values (1.69 physicians/1000, $30,148 GDP, 2.47% CFR), showing emerging detection capabilities.
    - High-capacity group (52 countries): Highest values (3.84 physicians/1000, $48,404 GDP, 3.39% CFR). The steepest GDP-CFR slope indicates comprehensive detection, where economic resources translate into accurate mortality measurement.
 
-4. The Capacity-Detection Paradox: Notably, the high-capacity group reports the highest average CFR (3.39%) despite having the best medical resources. This "surveillance paradox" suggests that physician density serves dual roles: genuine protection through better care, and increased detection through superior diagnosis and reporting. The positive association between capacity tercile and both GDP (r=0.97 across terciles) and CFR challenges simple interpretations of health system effectiveness.
+4. The Capacity-Detection Paradox: Notably, the high-capacity group reports the highest average CFR despite having the best medical resources. This "surveillance paradox" suggests that physician density serves dual roles: genuine protection through better care, and increased detection through superior diagnosis and reporting. The positive association between capacity tercile and both GDP and CFR challenges simple interpretations of health system effectiveness.
 
 5. Economic-Health System Interdependence: The near-perfect correlation between GDP and physician density across terciles (Low: $5,245 vs 0.24/1000; High: $48,404 vs 3.84/1000) indicates that economic development and health infrastructure are deeply intertwined, making isolated assessment of either factor difficult.
 
@@ -645,15 +642,15 @@ knitr::kable(model_summary,
 
 The regression analysis quantifies health system mediation effects during the first pandemic wave:
 
-1. Age Dominance: Population aged 65+ emerges as the strongest and only statistically significant protective factor (β=0.152, p<0.001), with each 1% increase in elderly population associated with 0.15% higher CFR. This aligns with known biological vulnerability.
+1. Age Dominance: Population aged 65+ emerges as the strongest and only statistically significant protective factor, with each 1% increase in elderly population associated with 0.15% higher CFR. This aligns with known biological vulnerability.
 
-2. Health System Buffer Not Significant: Contrary to visual patterns, physician density shows a non-significant negative coefficient (β=-0.173, p=0.412). This suggests that while visual trends indicate protection, statistical control for age and GDP eliminates this effect, revealing confounding.
+2. Health System Buffer Not Significant: Contrary to visual patterns, physician density shows a non-significant negative coefficient. This suggests that while visual trends indicate protection, statistical control for age and GDP eliminates this effect, revealing confounding.
 
-3. GDP Surveillance Effect Nullified: GDP per capita shows essentially zero effect (β≈0.000, p=0.67) when controlling for other factors, resolving the apparent "surveillance paradox" from visual analysis.
+3. GDP Surveillance Effect Nullified: GDP per capita shows essentially zero effect when controlling for other factors, resolving the apparent "surveillance paradox" from visual analysis.
 
-4. Model Limitations: The model explains only 10.8% of CFR variance (R²=0.108), indicating substantial unexplained variation. Key missing factors likely include testing capacity, variant differences, non-physician healthcare resources, and government intervention effectiveness.
+4. Model Limitations: The model explains only 10.8% of CFR variance, indicating substantial unexplained variation. Key missing factors likely include testing capacity, variant differences, non-physician healthcare resources, and government intervention effectiveness.
 
-The discrepancy between visual patterns (apparent physician protection) and regression results (non-significant effect) highlights severe multicollinearity. Physician density correlates strongly with both GDP (r=0.64) and elderly population (r=0.61), creating statistical confounding that simple visualization cannot disentangle.
+The discrepancy between visual patterns (apparent physician protection) and regression results (non-significant effect) highlights severe multicollinearity. Physician density correlates strongly with both GDP and elderly population, creating statistical confounding that simple visualization cannot disentangle.
 
 *Policy Implication*: Age structure, not health system capacity or wealth, primarily determined first-wave mortality outcomes. This supports targeted elderly protection as the most effective early-pandemic strategy, independent of national development level.
 
@@ -774,7 +771,7 @@ knitr::kable(
 )
 ```
 
-The significant interaction term (p=0.0462) reveals that physician density moderates the relationship between GDP and COVID-19 mortality:
+The significant interaction term reveals that physician density moderates the relationship between GDP and COVID-19 mortality:
 
 1. Differential Slopes: 
    - Low physician density (orange): Flatter slope indicates weak GDP-CFR relationship
@@ -842,7 +839,7 @@ ggplot(mortality_data, aes(x = gdp_per_capita, y = deaths_per_100k)) +
   theme_minimal()
 ```
 
-The visualization shows wealthier nations apparently experiencing higher mortality (r=0.29). However, statistical validation reveals this as a classic confounding scenario: wealthier countries have older populations (r=0.586) and better medical detection (r=0.641). When controlling for these factors, GDP shows a protective effect (-0.00108), reversing the initial relationship. This demonstrates how observational data can mislead without proper multivariate analysis.
+The visualization shows wealthier nations apparently experiencing higher mortality. However, statistical validation reveals this as a classic confounding scenario: wealthier countries have older populations and better medical detection. When controlling for these factors, GDP shows a protective effect, reversing the initial relationship. This demonstrates how observational data can mislead without proper multivariate analysis.
 
 ```{r}
 #| label: mortality-regression
@@ -876,9 +873,9 @@ knitr::kable(model_summary,
 ```
 
 The multivariate analysis reveals three key insights:
-1.Age Dominance: Population aged 65+ shows the strongest effect (10.41, p<0.001), meaning each 1% increase in elderly population associates with 10.4 additional deaths per 100,000.
-2.GDP Reversal: After controlling for age, GDP per capita shows a small but significant protective effect (-0.0011, p=0.004), reversing the initial bivariate correlation.
-3.Surveillance Effect: Physician density positively associates with mortality (26.47, p=0.002), likely reflecting better detection and reporting rather than worse outcomes.
+1.Age Dominance: Population aged 65+ shows the strongest effect, meaning each 1% increase in elderly population associates with 10.4 additional deaths per 100,000.
+2.GDP Reversal: After controlling for age, GDP per capita shows a small but significant protective effect, reversing the initial bivariate correlation.
+3.Surveillance Effect: Physician density positively associates with mortality, likely reflecting better detection and reporting rather than worse outcomes.
 
 This demonstrates classic confounding—age structure, not wealth, drives mortality differences. Countries with older populations had higher mortality regardless of economic development.
 
@@ -1138,10 +1135,10 @@ COVID-19 exhibited winter seasonality but with pandemic-specific disruptions, hi
 ### Reliability Assessment
 
 Findings demonstrate varying reliability levels:
-- **High Reliability**: Age structure effects (consistent across multiple regression specifications)
-- **Moderate Reliability**: Population density severity effects (supported by tree methods but potentially confounded)
-- **Lower Reliability**: Health system mediation (mixed signals across analyses, methodological dependencies)
-- **Context-Dependent**: Growth patterns specific to early pandemic phase before interventions
+- High Reliability: Age structure effects (consistent across multiple regression specifications)
+- Moderate Reliability: Population density severity effects (supported by tree methods but potentially confounded)
+- Lower Reliability: Health system mediation (mixed signals across analyses, methodological dependencies)
+- Context-Dependent: Growth patterns specific to early pandemic phase before interventions
 
 The convergence of age effects across different models (mortality rates and case fatality rates) provides strongest evidence, while health system roles require more nuanced interpretation considering detection-capacity tradeoffs.
 
