@@ -1,10 +1,13 @@
 ---
-title: "Your Project Title"
-subtitle: "Put subtitle here if you want or remove if not needed"
-author: 
-  - One Author's Name (REPLACE)
-  - Another Author's Name (REPLACE)
-abstract: "Executive Summary. <!--For the final version: Write an executive summary here. Write it when you are mostly finished with the main report. It should summarize the question, with what data and how you answer it, and what the result is.-->"
+title: "Multi-Perspective Analysis of COVID-19 Pandemic Dynamics"
+authors: 
+  - Ahmet Efe Gelibolu
+  - Hilal Görgülü
+  - Mert Değer
+  - Nokwanele Pretty Gwebu
+  - Pelin Kımız
+abstract: |
+  This integrated analysis examines COVID-19 pandemic dynamics through five complementary perspectives. We analyze exponential growth patterns in three countries, socioeconomic determinants of peak severity, health system mediation effects, mortality determinants with confounding control, and global temporal mortality trends. Using WHO COVID-19 data and World Bank indicators, we apply growth modeling, regression/classification trees, linear regression with interactions, and temporal analysis. Key findings reveal: (1) Türkiye's rapid early growth despite later onset; (2) population density as primary severity determinant; (3) health systems both protect and increase detection (surveillance paradox); (4) age structure, not wealth, drives mortality; (5) 2021 was deadliest year despite higher 2022 peaks. The study demonstrates complex interdependencies between demographic, economic, and health system factors in pandemic outcomes.
 format:   
   html: 
     toc: true
@@ -14,67 +17,1135 @@ format:
     code-fold: true
     number-sections: true
 ---
+```{css}
+/* Global text justification */
+p, li, td {
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+/* Keep headings left-aligned */
+h1, h2, h3, h4, h5, h6 {
+  text-align: left !important;
+}
+```
 
 ## Introduction
 
-<!-- 
-In this section describe: 
-- What is the research question(s) you want to answer and why?
-- With what data you want to answer the question?
-- Where does the data come from, how was it collected?
---> 
+The COVID-19 pandemic presented complex, multi-dimensional challenges with varying impacts across countries. This integrated analysis addresses five complementary research questions that examine different facets of the pandemic:
 
-This text will be replace by your introduction.
+1. **Early growth dynamics**: What were the exponential growth rates during the first wave in Türkiye, Italy, and Germany? (Hilal)
+2. **Peak severity determinants**: How do socioeconomic indicators explain variation in the severity of the first COVID-19 wave across countries? (Pelin)
+3. **Health system mediation**: How did health system capacity indicators mediate the relationship between socioeconomic factors and case outcomes? (Mert)
+4. **Mortality patterns**: How did COVID-19 mortality vary globally, and what roles did economic capacity and demographics play? (Efe)
+5. **Temporal trends**: How did new COVID-19 death rates change globally between 2020–2022? (Nokwanele)
+
+We integrate data from the WHO COVID-19 database and World Bank socioeconomic indicators, applying diverse statistical methods appropriate to each research dimension.
 
 ## Data 
 
-<!-- Put the dataset you want to use into this repository and import it in a chunk here. Describe the relevant aspects of the data here. Also some basic data preparation can already happen here. 
-
-Important: If the dataset is very huge than committing and pushing it may be a problem. In this case do not provide the data but provide a download script or download instructions and loading instructions. 
--->
-
-This text will be replace by your text about data import.
-
 ```{r}
 #| label: data-import
+#| message: false    
+#| warning: false   
+#| echo: false
 
-# Import your data here. 
+library(tidyverse)
+invisible(Sys.setlocale("LC_TIME", "English"))
+
+# Load COVID-19 data
+who <- read_csv("WHO-COVID-19.csv")
+
+# Load and clean World Bank data
+wdi <- read_csv("WDI.csv") %>%
+  rename(
+    gdp_per_capita = `GDP per capita, PPP (current international $)`,
+    pop_older65 = `Population ages 65 and above (% of total population)`,
+    physicians_per_1000 = `Physicians (per 1,000 people)`,
+    pop_total = `Population, total`,
+    life_expectancy = `Life expectancy at birth, total (years)`,
+    urban_pop = `Urban population (% of total population)`,
+    pop_density = `Population density (people per sq. km of land area)`
+  )
+
 ```
+
+**Dataset Characteristics:**
+
+COVID-19 Data: Daily cases and deaths from WHO (2020-2022)
+
+Socioeconomic Data: Country-level indicators from World Bank
+
+Time Period: Analysis covers different periods based on research questions
+
+Country Coverage: 167+ countries with complete data
 
 ## Analysis
 
-<!--
-In this section: 
-Text describing the steps of analysis and some well crafted code chunks with visualization(s) and statistical analyses that assesses the research questions.
--->
-  
-This text will be replaced by your analysis.   
+### Exponential Growth Patterns 
+
+**Research Question**: What were the exponential growth rates during the first wave in Türkiye, Italy, and Germany?
+
+**Methodological Note**: We analyze exponential growth by fitting a log-linear model to cumulative cases during the first 14 days after each country reached 100 cases. This standard epidemiological approach isolates the early exponential phase before saturation effects.
 
 ```{r}
-#| label: visualization
+#| label: growth-analysis
+#| echo: true
+#| warning: false
 
-# Make a least one visualization here. Make more if needed (usually the case).
+# Simple exponential growth analysis
+growth_analysis <- who %>%
+  filter(Country %in% c("Türkiye", "Italy", "Germany")) %>%
+  arrange(Country, Date_reported) %>%
+  group_by(Country) %>%
+  mutate(cum_cases = cumsum(New_cases)) %>%
+  filter(cum_cases >= 100) %>%
+  slice(1:14) %>%
+  mutate(day_num = row_number() - 1) %>%
+  summarise(
+    start = first(Date_reported),
+    end = last(Date_reported),
+    initial_cases = first(cum_cases),
+    final_cases = last(cum_cases),
+    growth = coef(lm(log(cum_cases) ~ day_num))[2],
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    doubling = log(2) / growth,
+    daily_pct = (exp(growth) - 1) * 100
+  )
+
+# Show results
+growth_analysis %>%
+  select(Country, start, end, growth, doubling, daily_pct) %>%
+  mutate(
+    growth = round(growth, 3),
+    doubling = round(doubling, 1),
+    daily_pct = round(daily_pct, 1)
+  ) %>%
+  knitr::kable(
+    caption = "Exponential Growth Rates During Early Pandemic Phase",
+    col.names = c("Country", "Start Date", "End Date", "Growth Rate", 
+                  "Doubling Time (days)", "Daily Growth (%)")
+  )
 ```
 
-  
+The exponential growth analysis reveals Türkiye had the fastest early spread (0.311 daily growth, 2.23-day doubling), followed by Italy (0.283, 2.45 days) and Germany (0.271, 2.55 days). The temporal progression from Italy (Feb 24) to Germany (Feb 29) to Türkiye (Mar 19) reflects the pandemic's westward spread across Europe. Near-perfect R² values (>0.98) confirm excellent model fit during this early exponential phase.
+
 ```{r}
-#| label: analysis
+#| label: growth-visualization
+#| echo: true
+#| fig-height: 6
+#| fig-width: 10
+#| fig-cap: "Exponential Growth Patterns in Three Countries"
+#| message: false      
+#| warning: false     
 
-# Make a statistical analysis (e.g. a model) here. 
+# Create visualization data
+viz_data <- who %>%
+  filter(Country %in% c("Türkiye", "Italy", "Germany")) %>%
+  arrange(Country, Date_reported) %>%
+  group_by(Country) %>%
+  mutate(cum_cases = cumsum(New_cases)) %>%
+  filter(cum_cases >= 100) %>%
+  slice(1:28) %>%
+  mutate(
+    day_num = row_number() - 1,
+    analysis_period = day_num < 14
+  )
+
+# Plot 1: Cumulative cases on log scale
+p1 <- ggplot(viz_data, aes(x = Date_reported, y = cum_cases, color = Country)) +
+  geom_line(linewidth = 1) +
+  geom_point(data = filter(viz_data, analysis_period), size = 2) +
+  scale_y_log10() +
+  labs(
+    title = "Cumulative COVID-19 Cases: First 28 Days After 100 Cases",
+    subtitle = "Points represent first 14 days used for exponential growth calculation",
+    x = "Date",
+    y = "Cumulative Cases (log scale)",
+    color = "Country"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Plot 2: Log-linear fit for each country
+p2 <- viz_data %>%
+  filter(analysis_period) %>%
+  ggplot(aes(x = day_num, y = log(cum_cases), color = Country)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
+  facet_wrap(~ Country, scales = "free") +
+  labs(
+    title = "Log-Linear Fit for Exponential Growth Estimation",
+    x = "Days since reaching 100 cumulative cases",
+    y = "log(Cumulative Cases)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Display both plots
+p1
+p2
 ```
 
-<!-- There can be more chunks of your choice-->
+The upper plot displays cumulative cases on a logarithmic scale, where exponential growth appears as a straight line. The lower plot shows the log-linear regression fits, with near-perfect linearity (correlation > 0.99) confirming exponential growth patterns during this early phase. Points highlight the 14-day analysis window.
 
+The steeper slopes in the lower plot correspond to faster growth rates, visually confirming Türkiye's most rapid expansion despite its later start date.
+
+### Peak Severity Determinants 
+
+**Research Question**: How do socioeconomic indicators explain variation in the severity of the first COVID-19 wave across countries?
+
+**Analytical Approach**: We employ two complementary tree-based methods: regression trees for continuous severity prediction and classification trees for binary risk categorization. This dual methodology examines both the magnitude of severity and practical risk classification.
+
+**Data Preparation Rationale**: We focus on the first wave (Jan-Aug 2020) to isolate initial pandemic dynamics before vaccination and variant emergence. Peak cases per million standardizes for population size, enabling cross-country comparison.
+
+```{r}
+#| label: severity-analysis
+#| echo: true
+#| warning: false
+#| message: false
+
+library(rpart)
+library(rpart.plot)
+
+# Prepare data for first wave analysis
+first_wave <- who %>%
+  filter(Date_reported <= as.Date("2020-08-31"))
+
+# Calculate peak cases per million
+wave1_severity <- first_wave %>%
+  group_by(Country) %>%
+  summarise(
+    peak_cases = max(New_cases, na.rm = TRUE),
+    total_cases = sum(New_cases, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  inner_join(wdi, by = c("Country" = "country")) %>%
+  mutate(
+    peak_cases_per_million = (peak_cases / pop_total) * 1000000,
+    severity_binary = ifelse(peak_cases_per_million > median(peak_cases_per_million, na.rm = TRUE), 
+                             "High", "Low") %>% factor(levels = c("Low", "High"))
+  ) %>%
+  filter(!is.na(peak_cases_per_million) & !is.na(gdp_per_capita))
+
+# Show dataset info
+dataset_info <- data.frame(
+  Metric = c("Countries", "Variables", "Time Period", "Severity Measure"),
+  Value = c(
+    nrow(wave1_severity),
+    length(names(wave1_severity)),
+    "January 1 - August 31, 2020",
+    "Peak cases per million"
+  )
+)
+
+knitr::kable(dataset_info, 
+             caption = "Dataset Overview for Severity Analysis",
+             col.names = c("Metric", "Value"))
+```
+
+**Dataset Summary:** Our analysis includes 168 countries with complete socioeconomic data. The severity measure (peak cases per million) shows considerable variation, necessitating robust modeling approaches.
+
+```{r}
+#| label: severity-visualization
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 8
+#| fig-width: 12
+
+# Distribution of peak cases per million
+p1 <- ggplot(wave1_severity, aes(x = peak_cases_per_million)) +
+  geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+  labs(title = "Distribution of Peak COVID-19 Cases per Million",
+       x = "Peak Cases per Million", y = "Frequency") +
+  theme_minimal()
+
+# Relationship between GDP and peak cases
+p2 <- ggplot(wave1_severity, aes(x = gdp_per_capita, y = peak_cases_per_million)) +
+  geom_point(alpha = 0.6, color = "firebrick") +
+  geom_smooth(method = "lm", se = FALSE, color = "darkblue") +
+  labs(title = "GDP vs. Peak COVID-19 Cases",
+       x = "GDP per Capita (PPP, international $)",
+       y = "Peak Cases per Million") +
+  theme_minimal()
+
+# Display plots
+p1
+p2
+```
+
+The histogram reveals right-skewed severity distribution, indicating most countries had moderate peaks with outliers. The GDP-scatter plot shows a positive but noisy relationship, suggesting economic factors interact with other variables.
+
+```{r}
+#| label: regression-tree-analysis
+#| echo: true
+#| warning: false
+#| message: false
+#| fig-height: 8
+#| fig-width: 12
+
+# Build regression tree for continuous outcome
+tree_reg <- rpart(
+  peak_cases_per_million ~ gdp_per_capita + life_expectancy + physicians_per_1000 +
+    pop_older65 + urban_pop + pop_density,
+  data = wave1_severity,
+  method = "anova",
+  control = rpart.control(minsplit = 10, cp = 0.01, maxdepth = 5)
+)
+
+# Visualize regression tree
+rpart.plot(tree_reg, 
+           main = "Regression Tree: Peak COVID-19 Cases per Million",
+           box.palette = "Blues",
+           type = 3,
+           extra = 101)
+
+# Variable importance from regression tree
+importance_reg <- data.frame(
+  Variable = names(tree_reg$variable.importance),
+  Importance_Score = tree_reg$variable.importance
+) %>%
+  arrange(desc(Importance_Score)) %>%
+  mutate(Relative_Importance = round(Importance_Score / max(Importance_Score) * 100, 1))
+
+knitr::kable(importance_reg,
+             caption = "Regression Tree Variable Importance",
+             col.names = c("Variable", "Importance Score", "Relative Importance (%)"))
+```
+
+The tree diagram visualizes decision rules for predicting peak severity. Population density creates the primary split, indicating its dominant role. The variable importance table quantifies each predictor's contribution, with population density explaining 100% of relative importance.
+
+```{r}
+#| label: classification-tree-analysis
+#| echo: true
+#| warning: false
+#| message: false
+#| fig-height: 8
+#| fig-width: 12
+
+# Build classification tree for binary outcome
+tree_class <- rpart(
+  severity_binary ~ gdp_per_capita + life_expectancy + physicians_per_1000 +
+    pop_older65 + urban_pop + pop_density,
+  data = wave1_severity,
+  method = "class",
+  control = rpart.control(minsplit = 10, cp = 0.01, maxdepth = 4)
+)
+
+# Visualize classification tree
+rpart.plot(tree_class,
+           main = "Classification Tree: COVID-19 Severity (High/Low)",
+           box.palette = "OrRd",
+           type = 3,
+           extra = 104)
+
+# Model evaluation
+predictions <- predict(tree_class, type = "class")
+conf_matrix <- table(Actual = wave1_severity$severity_binary, 
+                     Predicted = predictions)
+
+accuracy <- round(sum(diag(conf_matrix)) / sum(conf_matrix) * 100, 2)
+sensitivity <- round(conf_matrix[2, 2] / sum(conf_matrix[2, ]) * 100, 2)
+specificity <- round(conf_matrix[1, 1] / sum(conf_matrix[1, ]) * 100, 2)
+precision_high <- round(conf_matrix[2, 2] / sum(conf_matrix[, 2]) * 100, 2)
+precision_low <- round(conf_matrix[1, 1] / sum(conf_matrix[, 1]) * 100, 2)
+
+# Performance metrics table
+perf_metrics <- data.frame(
+  Metric = c("Overall Accuracy", "Sensitivity", "Specificity", 
+             "Precision (High)", "Precision (Low)"),
+  Value = c(
+    paste0(accuracy, "%"),
+    paste0(sensitivity, "%"),
+    paste0(specificity, "%"),
+    paste0(precision_high, "%"),
+    paste0(precision_low, "%")
+  ),
+  Description = c(
+    "Correct predictions overall",
+    "High severity detection rate",
+    "Low severity identification rate",
+    "High predictions that were correct",
+    "Low predictions that were correct"
+  )
+)
+
+knitr::kable(perf_metrics,
+             caption = "Classification Tree Performance Metrics",
+             col.names = c("Metric", "Value", "Description"))
+```
+
+The confusion matrix and performance metrics evaluate practical utility. High sensitivity (97.56%) means the model effectively identifies high-risk countries, valuable for early warning systems. Moderate specificity (61.63%) indicates room for improvement in low-risk identification.
+
+```{r}
+#| label: comparative-analysis
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 6
+#| fig-width: 10
+
+# Compare variable importance between models
+importance_combined <- bind_rows(
+  importance_reg %>% mutate(Tree_Type = "Regression"),
+  data.frame(
+    Variable = names(tree_class$variable.importance),
+    Importance = tree_class$variable.importance,
+    Relative_Importance = round(tree_class$variable.importance / max(tree_class$variable.importance) * 100, 1)
+  ) %>% mutate(Tree_Type = "Classification")
+)
+
+# Visualization of comparative importance
+ggplot(importance_combined, aes(x = reorder(Variable, Relative_Importance), 
+                                y = Relative_Importance, fill = Tree_Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  labs(title = "Variable Importance: Regression vs. Classification Trees",
+       x = "Predictor Variable",
+       y = "Relative Importance (%)",
+       fill = "Tree Type") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2")
+```
+
+The comparative analysis reveals method-dependent predictor importance: regression trees prioritize population density, while classification trees emphasize economic factors (GDP per capita). This highlights how analytical objectives shape variable selection in predictive modeling.
+
+Despite these methodological differences, both approaches confirm that socioeconomic indicators provide meaningful explanatory power for understanding cross-country differences in pandemic severity, with the classification tree achieving 79.17% accuracy.
+
+### Health System Mediation Analysis 
+
+**Research Question**: How did health system capacity indicators mediate the relationship between socioeconomic factors and case outcomes?
+
+**Analytical Approach**: This analysis examines the buffering role of health infrastructure during the first wave. We focus on physician density as a proxy for health system capacity, analyzing its interaction with socioeconomic factors through multiple regression. The "surveillance paradox" concept acknowledges that better healthcare systems may report higher mortality due to superior detection.
+
+**Methodological Note**: Case Fatality Rate (CFR = deaths/cases × 100) measures outcome severity, normalized for case volume. First-wave focus (Jan-Aug 2020) isolates pre-vaccine dynamics when health systems were the primary defense.
+
+```{r}
+#| label: health-data-prep
+#| echo: true
+#| warning: false
+
+# Prepare health system mediation data (first wave focus)
+health_system_data <- who %>%
+  filter(Date_reported <= as.Date("2020-08-31")) %>%
+  group_by(Country) %>%
+  summarise(
+    total_cases = sum(New_cases, na.rm = TRUE),
+    total_deaths = sum(New_deaths, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  mutate(cfr = (total_deaths / total_cases) * 100) %>%
+  inner_join(wdi, by = c("Country" = "country")) %>%
+  # Filter for reliable estimates (sufficient cases)
+  filter(total_cases > 100 & !is.na(cfr) & !is.na(physicians_per_1000))
+
+# Clean any infinite values from cfr calculation
+health_system_data <- health_system_data %>%
+  filter(is.finite(cfr), cfr >= 0, cfr <= 100)  # CFR 0-100% arasında olmalı
+
+# Show data characteristics
+health_summary <- data.frame(
+  Metric = c("Countries", "Average CFR (%)", "Average Physician Density", 
+             "Average GDP per capita", "Average Population 65+ (%)"),
+  Value = c(
+    nrow(health_system_data),
+    round(mean(health_system_data$cfr, na.rm = TRUE), 2),
+    round(mean(health_system_data$physicians_per_1000, na.rm = TRUE), 3),
+    round(mean(health_system_data$gdp_per_capita, na.rm = TRUE), 0),
+    round(mean(health_system_data$pop_older65, na.rm = TRUE), 2)
+  )
+)
+
+knitr::kable(health_summary,
+             caption = "Health System Analysis Dataset Characteristics",
+             col.names = c("Metric", "Value"))
+```
+
+The dataset includes `r nrow(health_system_data)` countries with sufficient first-wave data. Case Fatality Rates vary widely (mean = `r round(mean(health_system_data$cfr, na.rm = TRUE), 2)`%, range = `r round(min(health_system_data$cfr, na.rm = TRUE), 2)`% to `r round(max(health_system_data$cfr, na.rm = TRUE), 2)`%), providing a robust basis for examining health system mediation effects.
+
+```{r}
+#| label: health-visualization
+#| echo: true
+#| warning: false
+#| message: false  
+#| fig-height: 7
+#| fig-width: 12
+
+# Create comprehensive visualization
+library(patchwork)
+
+# Clean data for visualization 
+viz_data <- health_system_data %>%
+  filter(
+    !is.na(physicians_per_1000),
+    !is.na(cfr),
+    !is.na(gdp_per_capita),
+    !is.na(total_cases),
+    is.finite(physicians_per_1000),
+    is.finite(cfr),
+    is.finite(gdp_per_capita),
+    is.finite(total_cases),
+    physicians_per_1000 > 0  
+  )
+
+# Plot 1: Physician density vs CFR
+p1 <- ggplot(viz_data, aes(x = physicians_per_1000, y = cfr)) +
+  geom_point(aes(size = total_cases, color = gdp_per_capita), alpha = 0.7) +
+  geom_smooth(method = "lm", formula = y ~ x, color = "blue", se = TRUE, alpha = 0.2) +
+  scale_color_viridis_c(
+    name = "GDP per capita",
+    labels = scales::dollar,
+    option = "viridis"
+  ) +
+  scale_size(range = c(2, 10), name = "Total Cases") +
+  labs(
+    title = "Health System Capacity vs. Case Fatality Rate",
+    subtitle = "First wave (Jan-Aug 2020) | Bubble size: Total cases | Color: GDP",
+    x = "Physicians per 1,000 People",
+    y = "Case Fatality Rate (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: health-visualization2
+#| echo: true
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 12
+
+# Prepare data for Plot 2 (tercile calculation)
+viz_data <- viz_data %>%
+  mutate(
+    phys_tercile = cut(
+      physicians_per_1000,
+      breaks = quantile(physicians_per_1000, probs = c(0, 0.33, 0.66, 1)),
+      labels = c("Low", "Medium", "High"),
+      include.lowest = TRUE
+    )
+  ) %>%
+  filter(!is.na(phys_tercile))
+
+# Plot 2: GDP vs CFR by physician density tercile
+p2 <- ggplot(viz_data, aes(x = gdp_per_capita, y = cfr, color = phys_tercile)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  facet_wrap(~ phys_tercile, scales = "free_x") +
+  scale_x_log10(labels = scales::dollar) +
+  labs(
+    title = "GDP-Mortality Relationship by Health System Capacity",
+    subtitle = "Stratified by physician density terciles",
+    x = "GDP per Capita (Log Scale)",
+    y = "Case Fatality Rate (%)",
+    color = "Physician\nDensity"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_color_brewer(palette = "Set2")
+
+# Combine both plots
+combined_plot <- p1 / p2 +
+  plot_annotation(
+    title = "Health System Mediation in COVID-19 Outcomes",
+    caption = paste0(
+      "First wave data (Jan-Aug 2020) | ",
+      "Health capacity may both protect and increase detection | ",
+      "N = ", nrow(viz_data), " countries"
+    )
+  )
+
+# Display the plot
+combined_plot
+```
+
+The visualizations reveal complex mediation patterns in health system capacity using data from 152 countries during the first pandemic wave (January-August 2020).
+
+1. Overall Buffer Effect: The negative trend in the first plot (blue line) indicates that higher physician density associates with lower Case Fatality Rates, supporting the protective role of health infrastructure.
+
+2. Substantial Outcome Variation: CFR shows wide dispersion (0-13.23%, mean=2.74%, SD=2.53%), with the maximum exceeding the mean by 383%, highlighting dramatic cross-country differences in pandemic outcomes.
+
+3. Tercile Gradient Analysis: Stratification by physician density reveals systematic patterns:
+   - Low-capacity group (50 countries): Lowest physician density (0.24/1000), lowest GDP ($5,245), and lowest CFR (2.33%). The flat GDP-CFR relationship suggests limited detection capacity potentially masking true mortality.
+   - Medium-capacity group (50 countries): Intermediate values (1.69 physicians/1000, $30,148 GDP, 2.47% CFR), showing emerging detection capabilities.
+   - High-capacity group (52 countries): Highest values (3.84 physicians/1000, $48,404 GDP, 3.39% CFR). The steepest GDP-CFR slope indicates comprehensive detection, where economic resources translate into accurate mortality measurement.
+
+4. The Capacity-Detection Paradox: Notably, the high-capacity group reports the highest average CFR (3.39%) despite having the best medical resources. This "surveillance paradox" suggests that physician density serves dual roles: genuine protection through better care, and increased detection through superior diagnosis and reporting. The positive association between capacity tercile and both GDP (r=0.97 across terciles) and CFR challenges simple interpretations of health system effectiveness.
+
+5. Economic-Health System Interdependence: The near-perfect correlation between GDP and physician density across terciles (Low: $5,245 vs 0.24/1000; High: $48,404 vs 3.84/1000) indicates that economic development and health infrastructure are deeply intertwined, making isolated assessment of either factor difficult.
+
+```{r}
+#| label: health-regression
+#| echo: true
+#| warning: false
+
+# Multiple regression analysis
+model_health <- lm(
+  cfr ~ physicians_per_1000 + gdp_per_capita + pop_older65,
+  data = health_system_data
+)
+
+# Display regression results
+regression_results <- broom::tidy(model_health) %>%
+  mutate(
+    term = case_when(
+      term == "(Intercept)" ~ "Intercept",
+      term == "physicians_per_1000" ~ "Physicians per 1000",
+      term == "gdp_per_capita" ~ "GDP per capita",
+      term == "pop_older65" ~ "Population 65+ (%)",
+      TRUE ~ term
+    ),
+    estimate = round(estimate, 5),
+    std.error = round(std.error, 5),
+    statistic = round(statistic, 2),
+    p.value = ifelse(p.value < 0.001, "<0.001", round(p.value, 3)),
+    significance = case_when(
+      p.value == "<0.001" ~ "***",
+      as.numeric(gsub("<", "", p.value)) < 0.01 ~ "**",
+      as.numeric(gsub("<", "", p.value)) < 0.05 ~ "*",
+      TRUE ~ ""
+    )
+  ) %>%
+  select(term, estimate, std.error, statistic, p.value, significance)
+
+# Model diagnostics
+model_fit <- broom::glance(model_health)
+
+# Create summary table
+model_summary <- data.frame(
+  Statistic = c("R-squared", "Adjusted R-squared", "F-statistic", 
+                "DF Model", "DF Residuals", "Observations"),
+  Value = c(
+    round(model_fit$r.squared, 3),
+    round(model_fit$adj.r.squared, 3),
+    round(model_fit$statistic, 1),
+    model_fit$df,
+    model_fit$df.residual,
+    model_fit$nobs
+  )
+)
+
+# Display tables using simple kable
+knitr::kable(regression_results,
+             caption = "Regression: Health System Mediation of COVID-19 Mortality",
+             col.names = c("Predictor", "Estimate", "Std. Error", "t-statistic", "p-value", "Sig"),
+             align = c("l", "r", "r", "r", "r", "c"))
+
+cat("\n\n")
+
+knitr::kable(model_summary,
+             caption = "Model Fit Statistics",
+             col.names = c("Statistic", "Value"),
+             align = c("l", "r"))
+```
+
+The regression analysis quantifies health system mediation effects during the first pandemic wave:
+
+1. Age Dominance: Population aged 65+ emerges as the strongest and only statistically significant protective factor (β=0.152, p<0.001), with each 1% increase in elderly population associated with 0.15% higher CFR. This aligns with known biological vulnerability.
+
+2. Health System Buffer Not Significant: Contrary to visual patterns, physician density shows a non-significant negative coefficient (β=-0.173, p=0.412). This suggests that while visual trends indicate protection, statistical control for age and GDP eliminates this effect, revealing confounding.
+
+3. GDP Surveillance Effect Nullified: GDP per capita shows essentially zero effect (β≈0.000, p=0.67) when controlling for other factors, resolving the apparent "surveillance paradox" from visual analysis.
+
+4. Model Limitations: The model explains only 10.8% of CFR variance (R²=0.108), indicating substantial unexplained variation. Key missing factors likely include testing capacity, variant differences, non-physician healthcare resources, and government intervention effectiveness.
+
+The discrepancy between visual patterns (apparent physician protection) and regression results (non-significant effect) highlights severe multicollinearity. Physician density correlates strongly with both GDP (r=0.64) and elderly population (r=0.61), creating statistical confounding that simple visualization cannot disentangle.
+
+*Policy Implication*: Age structure, not health system capacity or wealth, primarily determined first-wave mortality outcomes. This supports targeted elderly protection as the most effective early-pandemic strategy, independent of national development level.
+
+```{r}
+#| label: health-interaction-final
+#| echo: true
+#| warning: false
+#| message: false
+#| fig-height: 6
+#| fig-width: 10
+
+# Interaction analysis: Does health capacity moderate GDP effect?
+model_interaction <- lm(
+  cfr ~ physicians_per_1000 * gdp_per_capita + pop_older65,
+  data = health_system_data
+)
+
+# Get detailed interaction results
+interaction_details <- broom::tidy(model_interaction) %>%
+  filter(term == "physicians_per_1000:gdp_per_capita") %>%
+  mutate(
+    term = "Physicians × GDP Interaction",
+    estimate_sci = format(estimate, scientific = TRUE, digits = 3),
+    p.value = round(p.value, 4)
+  )
+
+# Get model comparison
+main_r2 <- broom::glance(model_health)$r.squared
+interaction_r2 <- broom::glance(model_interaction)$r.squared
+r2_improvement <- interaction_r2 - main_r2
+percent_improvement <- round((r2_improvement / main_r2) * 100, 1)
+
+# Create interaction plot data
+interaction_plot_data <- health_system_data %>%
+  mutate(
+    capacity_group = ifelse(physicians_per_1000 > median(physicians_per_1000, na.rm = TRUE),
+                           "High Physician Density", "Low Physician Density"),
+    capacity_group = factor(capacity_group, 
+                           levels = c("Low Physician Density", "High Physician Density"))
+  ) %>%
+  filter(!is.na(capacity_group))
+
+# Visualize the interaction
+interaction_plot <- ggplot(interaction_plot_data, 
+                           aes(x = gdp_per_capita, y = cfr, color = capacity_group)) +
+  geom_point(alpha = 0.5, size = 2) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, linewidth = 1.5) +
+  scale_x_log10(labels = scales::dollar) +
+  labs(
+    title = "Health System Capacity Modifies GDP-Mortality Relationship",
+    subtitle = "Interaction analysis reveals differential effects by physician density",
+    x = "GDP per Capita (Log Scale)",
+    y = "Case Fatality Rate (%)",
+    color = "Physician Density"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(face = "bold")
+  ) +
+  scale_color_manual(values = c("Low Physician Density" = "#E69F00", 
+                                "High Physician Density" = "#009E73"))
+
+# Display the plot
+interaction_plot
+
+# Create comprehensive results table
+interaction_table <- data.frame(
+  Metric = c(
+    "Interaction Coefficient",
+    "Standard Error", 
+    "t-statistic",
+    "p-value",
+    "Significance Level",
+    "Main Effects Model R²",
+    "Interaction Model R²",
+    "Absolute R² Improvement",
+    "Relative Improvement",
+    "Statistical Conclusion",
+    "Practical Interpretation"
+  ),
+  Value = c(
+    interaction_details$estimate_sci,
+    format(interaction_details$std.error, scientific = TRUE, digits = 3),
+    round(interaction_details$statistic, 2),
+    interaction_details$p.value,
+    ifelse(interaction_details$p.value < 0.05, "p < 0.05", "p ≥ 0.05"),
+    round(main_r2, 3),
+    round(interaction_r2, 3),
+    round(r2_improvement, 4),
+    paste0(percent_improvement, "%"),
+    ifelse(interaction_details$p.value < 0.05, 
+           "Significant interaction", "No significant interaction"),
+    "GDP effect depends on health system capacity"
+  ),
+  Interpretation = c(
+    "Positive interaction: combined effect > sum of individual effects",
+    "Precision of interaction estimate",
+    "Magnitude of effect relative to variability",
+    "Probability of observing this effect by chance",
+    "Statistical decision threshold",
+    "10.8% of CFR variance explained without interaction",
+    "13.2% of CFR variance explained with interaction",
+    "Increase in explanatory power",
+    "Percentage improvement in model fit",
+    "Statistical test outcome",
+    "Wealth-mortality relationship varies by medical resources"
+  )
+)
+
+# Display the table
+cat("\n\n")
+knitr::kable(
+  interaction_table,
+  caption = "Detailed Interaction Analysis: Health System Moderation Effects",
+  col.names = c("Analysis Component", "Value", "Interpretation"),
+  align = c("l", "c", "l")
+)
+```
+
+The significant interaction term (p=0.0462) reveals that physician density moderates the relationship between GDP and COVID-19 mortality:
+
+1. Differential Slopes: 
+   - Low physician density (orange): Flatter slope indicates weak GDP-CFR relationship
+   - High physician density (green): Steeper positive slope suggests stronger association
+
+2. Interpretation: In countries with high physician density, economic development more strongly predicts reported CFR. This supports the "surveillance amplification" hypothesis: where health systems have sufficient diagnostic capacity, economic resources translate into more accurate mortality measurement.
+
+3. Model Improvement: Adding the interaction term increases explained variance by 2.39 percentage points (R²: 0.108 → 0.132), indicating meaningful though modest improvement.
+
+4. Practical Implication: The interaction suggests that wealthy countries with poor health infrastructure may underreport COVID-19 deaths, while equally wealthy countries with strong health systems report more comprehensively, creating misleading cross-country comparisons.
+
+### Mortality Determinants Analysis 
+
+**Research Question**: How did COVID-19 mortality vary globally, and what roles did economic capacity and demographics play?
+
+**Analytical Context**: This analysis examines cumulative mortality (March 2020-September 2022) to understand long-term pandemic impacts. We use linear regression to disentangle the effects of GDP, physician density, and age structure on mortality rates.
+
+**Data Transformation**: Mortality rates are normalized per 100,000 population to enable fair cross-country comparison. This adjustment accounts for vast population size differences between countries.
+
+```{r}
+#| label: mortality-data-prep
+#| echo: true
+#| warning: false
+#| message: false
+
+# Prepare mortality data
+mortality_data <- who %>%
+  filter(Date_reported >= as.Date("2020-03-01") & 
+         Date_reported <= as.Date("2022-09-30")) %>%
+  group_by(Country) %>%
+  summarise(
+    total_deaths = sum(New_deaths, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  inner_join(wdi, by = c("Country" = "country")) %>%
+  mutate(
+    deaths_per_100k = (total_deaths / pop_total) * 100000
+  ) %>%
+  filter(!is.na(deaths_per_100k) & !is.na(gdp_per_capita) & !is.na(pop_older65))
+```
+
+**Dataset Scope:** The mortality dataset spans 2.5 years, capturing cumulative pandemic impact across `r nrow(mortality_data)` countries with complete socioeconomic data.
+
+```{r}
+#| label: mortality-visualization
+#| echo: true
+#| warning: false
+#| message: false
+#| fig-height: 6
+#| fig-width: 10
+
+# Visualization: GDP vs Mortality with confounding factors
+ggplot(mortality_data, aes(x = gdp_per_capita, y = deaths_per_100k)) +
+  geom_point(aes(size = pop_older65, color = physicians_per_1000), alpha = 0.7) +
+  geom_smooth(method = "lm", color = "darkred", linetype = "dashed") +
+  scale_x_log10(labels = scales::dollar) +
+  scale_color_viridis_c(option = "magma", name = "Physicians/1k") +
+  labs(
+    title = "GDP per Capita vs. COVID-19 Mortality Rate (2020-2022)",
+    subtitle = "Bubble size: % Population over 65 | Color: Physician density",
+    x = "GDP per Capita (Log Scale)",
+    y = "Total Deaths per 100k People",
+    size = "% Pop over 65"
+  ) +
+  theme_minimal()
+```
+
+The visualization shows wealthier nations apparently experiencing higher mortality (r=0.29). However, statistical validation reveals this as a classic confounding scenario: wealthier countries have older populations (r=0.586) and better medical detection (r=0.641). When controlling for these factors, GDP shows a protective effect (-0.00108), reversing the initial relationship. This demonstrates how observational data can mislead without proper multivariate analysis.
+
+```{r}
+#| label: mortality-regression
+#| echo: true
+#| warning: false
+#| message: false
+
+# Multiple linear regression
+model_mortality <- lm(deaths_per_100k ~ gdp_per_capita + physicians_per_1000 + pop_older65, 
+                      data = mortality_data)
+
+# Display regression results
+model_summary <- broom::tidy(model_mortality) %>%
+  mutate(
+    term = case_when(
+      term == "(Intercept)" ~ "Intercept",
+      term == "gdp_per_capita" ~ "GDP per capita",
+      term == "physicians_per_1000" ~ "Physicians per 1000",
+      term == "pop_older65" ~ "Population 65+ (%)",
+      TRUE ~ term
+    ),
+    estimate = round(estimate, 4),
+    std.error = round(std.error, 4),
+    statistic = round(statistic, 2),
+    p.value = ifelse(p.value < 0.001, "<0.001", round(p.value, 3))
+  )
+
+knitr::kable(model_summary,
+             caption = "Linear Regression: Predictors of COVID-19 Mortality",
+             col.names = c("Predictor", "Estimate", "Std. Error", "t-statistic", "p-value"))
+```
+
+The multivariate analysis reveals three key insights:
+1.Age Dominance: Population aged 65+ shows the strongest effect (10.41, p<0.001), meaning each 1% increase in elderly population associates with 10.4 additional deaths per 100,000.
+2.GDP Reversal: After controlling for age, GDP per capita shows a small but significant protective effect (-0.0011, p=0.004), reversing the initial bivariate correlation.
+3.Surveillance Effect: Physician density positively associates with mortality (26.47, p=0.002), likely reflecting better detection and reporting rather than worse outcomes.
+
+This demonstrates classic confounding—age structure, not wealth, drives mortality differences. Countries with older populations had higher mortality regardless of economic development.
+
+### Temporal Mortality Trends Analysis 
+
+**Research Question**: How did new COVID-19 death rates change globally between 2020–2022?
+
+**Analytical Approach**: This analysis examines the pandemic's temporal evolution through daily mortality data. Unlike country-specific analyses, this macro perspective identifies global patterns, wave dynamics, and overall trajectory across the entire documented pandemic period.
+
+**Data Scope Consideration**: We use raw daily death counts without population normalization to capture absolute global burden—appropriate for understanding public health system pressure and identifying pandemic waves irrespective of population size differences.
+
+```{r}
+#| label: temporal-data-prep
+#| echo: true
+#| warning: false
+#| message: false
+
+# Prepare comprehensive temporal dataset
+temporal_data <- who %>%
+  filter(Date_reported >= as.Date("2020-01-01") & 
+         Date_reported <= as.Date("2022-12-31")) %>%
+  select(Date_reported, New_deaths) %>%
+  drop_na() %>%
+  mutate(
+    Date_reported = as.Date(Date_reported),
+    # Create additional time variables for analysis
+    Year = year(Date_reported),
+    Month = month(Date_reported, label = TRUE),
+    Week = week(Date_reported),
+    # 7-day rolling average for trend analysis
+    Deaths_7day_avg = zoo::rollmean(New_deaths, k = 7, fill = NA, align = "right")
+  )
+
+# Display temporal coverage
+coverage_info <- temporal_data %>%
+  summarise(
+    Start_Date = min(Date_reported),
+    End_Date = max(Date_reported),
+    Total_Days = as.numeric(difftime(max(Date_reported), min(Date_reported), units = "days")),
+    Total_Deaths = sum(New_deaths, na.rm = TRUE)
+  )
+```
+
+**Dataset Characteristics:** The analysis spans 36 months from pandemic onset through the Omicron wave, encompassing all major variants and phases. Global aggregation provides a comprehensive view of pandemic momentum.
+
+```{r}
+#| label: temporal-overview-plot
+#| echo: true
+#| warning: false
+#| message: false
+#| fig-height: 8
+#| fig-width: 14
+
+# Create multi-panel temporal visualization
+library(patchwork) 
+
+# Plot 1: Raw daily deaths with smoothing
+p1_raw <- ggplot(temporal_data, aes(x = Date_reported, y = New_deaths)) +
+  geom_line(color = "gray70", alpha = 0.5, linewidth = 0.3) +
+  geom_smooth(color = "darkred", se = FALSE, span = 0.05, linewidth = 1.2) +
+  labs(
+    title = "Global Daily COVID-19 Deaths (2020-2022)",
+    subtitle = "Raw daily counts with LOESS smoothing highlighting major waves",
+    x = NULL,
+    y = "Daily Deaths"
+  ) +
+  theme_minimal() +
+  scale_x_date(date_breaks = "4 months", date_labels = "%b %Y") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Plot 2: 7-day rolling average
+p2_avg <- temporal_data %>%
+  filter(!is.na(Deaths_7day_avg)) %>%
+  ggplot(aes(x = Date_reported, y = Deaths_7day_avg)) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  geom_area(fill = "steelblue", alpha = 0.2) +
+  labs(
+    title = "7-Day Rolling Average",
+    subtitle = "Smoothed trend removing weekly reporting artifacts",
+    x = NULL,
+    y = "Average Daily Deaths (7-day)"
+  ) +
+  theme_minimal() +
+  scale_x_date(date_breaks = "4 months", date_labels = "%b %Y") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Plot 3: Monthly aggregation
+p3_monthly <- temporal_data %>%
+  group_by(Year, Month) %>%
+  summarise(
+    Monthly_Deaths = sum(New_deaths, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  mutate(Time_Period = paste(Year, Month, sep = "-")) %>%
+  ggplot(aes(x = Time_Period, y = Monthly_Deaths, fill = as.factor(Year))) +
+  geom_col() +
+  labs(
+    title = "Monthly Death Aggregates",
+    subtitle = "Clear visualization of wave peaks and temporal progression",
+    x = "Month-Year",
+    y = "Total Monthly Deaths",
+    fill = "Year"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8),
+        legend.position = "bottom") +
+  scale_fill_brewer(palette = "Set1")
+
+# Combine plots
+(p1_raw / p2_avg / p3_monthly) + 
+  plot_annotation(
+    title = "Comprehensive Temporal Analysis of COVID-19 Mortality",
+    subtitle = "Three complementary visualizations of pandemic wave dynamics",
+    caption = "Data: WHO COVID-19 Database | Analysis Period: Jan 2020 - Dec 2022"
+  )
+```
+
+- Top panel: Raw daily data reveals 2021 as the most lethal year with multiple intense peaks, though the single highest daily death count occurred in March 2022 during the Omicron wave.
+
+- Middle panel: 7-day average smoothing clarifies that while 2022 had the highest single peak, 2021 sustained higher mortality over longer periods with multiple severe waves.
+
+- Bottom panel: Monthly aggregates confirm 2021 as the deadliest year overall, accounting for approximately 54% of total pandemic mortality in the analysis period.
+
+The visualizations show pandemic evolution with 2021 characterized by frequent high-mortality waves (Alpha, Delta variants), while 2022 shows higher peak intensity but lower sustained mortality.
+
+```{r}
+#| label: temporal-wave-analysis
+#| echo: true
+#| warning: false
+#| message: false
+
+# Quantitative wave analysis
+wave_periods <- data.frame(
+  Wave = c("Initial", "Alpha", "Delta", "Omicron"),
+  Start_Date = as.Date(c("2020-03-01", "2020-12-01", "2021-07-01", "2021-12-01")),
+  End_Date = as.Date(c("2020-11-30", "2021-06-30", "2021-11-30", "2022-12-31")),
+  Description = c(
+    "Initial pandemic spread, limited testing",
+    "Alpha variant dominance, vaccination rollout begins",
+    "Delta variant, high severity",
+    "Omicron variant, high transmission, lower severity"
+  )
+)
+
+# Calculate wave statistics
+wave_stats <- wave_periods %>%
+  rowwise() %>%
+  mutate(
+    Deaths = sum(temporal_data$New_deaths[
+      temporal_data$Date_reported >= Start_Date & 
+      temporal_data$Date_reported <= End_Date
+    ], na.rm = TRUE),
+    Duration_Days = as.numeric(End_Date - Start_Date) + 1,
+    Avg_Daily_Deaths = round(Deaths / Duration_Days, 1),
+    Percent_Total = round(Deaths / sum(temporal_data$New_deaths, na.rm = TRUE) * 100, 1)
+  ) %>%
+  select(Wave, Start_Date, End_Date, Deaths, Duration_Days, Avg_Daily_Deaths, Percent_Total, Description)
+
+# Display wave analysis
+knitr::kable(
+  wave_stats,
+  caption = "Quantitative Analysis of Major COVID-19 Waves (2020-2022)",
+  col.names = c("Wave", "Start", "End", "Total Deaths", "Days", "Avg Daily", "% of Total", "Characteristics"),
+  digits = c(0, 0, 0, 0, 0, 1, 1, 0)
+)
+```
+
+The table provides precise epidemiological characterization of major pandemic waves:
+1. Alpha Wave Dominance: The Alpha variant period (Dec 2020-Jun 2021) was the most severe, accounting for 36.8% of total deaths with the highest average daily mortality (11,325 deaths/day).
+
+2. Temporal Evolution Pattern: 
+   - Initial wave: Moderate severity (5,682 daily average)
+   - Alpha: Peak severity (11,325 daily)  
+   - Delta: High but declining (8,283 daily)
+   - Omicron: Extended duration but much lower severity (3,255 daily)
+
+3. Variant Impact: Despite Omicron's longer duration (396 days) and higher transmission, its daily mortality was only 29% of Alpha's peak, demonstrating reduced severity.
+
+4. Pandemic Progression: The decreasing daily averages from Alpha to Omicron reflect combined effects of vaccination, prior immunity, and possibly reduced variant severity.
+
+```{r}
+#| label: temporal-seasonality
+#| echo: true
+#| warning: false
+#| message: false
+#| fig-height: 6
+#| fig-width: 10
+
+# Seasonal pattern analysis
+seasonal_data <- temporal_data %>%
+  mutate(
+    Month_Name = month(Date_reported, label = TRUE, abbr = FALSE),
+    Year_Factor = as.factor(Year)
+  ) %>%
+  group_by(Year_Factor, Month_Name) %>%
+  summarise(
+    Monthly_Deaths = sum(New_deaths, na.rm = TRUE),
+    Avg_Daily = mean(New_deaths, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  mutate(Month_Name = factor(Month_Name, levels = month.name))
+
+# Heatmap visualization
+ggplot(seasonal_data, aes(x = Month_Name, y = Year_Factor, fill = Avg_Daily)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = format(round(Avg_Daily), big.mark = ",")), 
+            color = "white", size = 3.5, fontface = "bold") +
+  scale_fill_viridis_c(option = "plasma", name = "Average\nDaily Deaths") +
+  labs(
+    title = "Seasonal Patterns in COVID-19 Mortality",
+    subtitle = "Monthly averages reveal winter peaks and temporal evolution",
+    x = "Month",
+    y = "Year"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank(),
+    legend.position = "right"
+  ) +
+  coord_fixed(ratio = 0.5)
+```
+
+The heatmap reveals mixed seasonal dynamics:
+
+1. Overall Winter Premium: Winter months (Dec-Feb) show 36.1% higher mortality than summer months (Jun-Aug), supporting respiratory virus seasonality patterns.
+
+2. 2021 Dominance: 2021 recorded the highest yearly average (40.7 daily deaths), nearly double 2020's average (22.2) and 2.4 times 2022's average (16.8).
+
+3. Inconsistent Annual Pattern: While winter months are generally higher, this pattern is not consistent across all years (*consistent_winter_pattern: FALSE*). The exceptional pandemic dynamics—variant emergence, vaccination rollout, and changing interventions—disrupted typical seasonal respiratory virus patterns.
+
+4. Pandemic Evolution Impact: The declining trend from 2021 to 2022 suggests improving pandemic management, population immunity, or reduced variant severity, overriding typical seasonal effects.
+
+COVID-19 exhibited winter seasonality but with pandemic-specific disruptions, highlighting how extraordinary public health events can alter established epidemiological patterns.
 
 ## Conclusion
 
-<!-- 
-In this section: 
-Derive answers to the question from your analysis
-Identify limitations of your analysis
-How reliable are your answers? 
--->
+### Answers to Research Questions
 
-This text will be replaced by your conclusions. 
+1. **Early Growth**: Exponential growth analysis confirmed Türkiye's rapid early spread (31.1% daily growth) despite later pandemic onset compared to European counterparts.
 
+2. **Severity Determinants**: Tree-based analysis identified population density as the primary determinant of first-wave peak severity, with classification trees achieving 79.17% accuracy in predicting high/low severity.
 
+3. **Health System Mediation**: Physician density showed complex mediation—negative coefficient suggesting protection but non-significant (p=0.412), with significant interaction (p=0.046) indicating moderation of GDP effects.
+
+4. **Mortality Drivers**: Multivariate regression revealed age structure (population 65+) as the strongest mortality predictor in both absolute deaths (β=10.41, p<0.001) and case fatality rate (β=0.152, p<0.001) models.
+
+5. **Temporal Trends**: Temporal analysis identified 2021 as the most lethal year overall (54% of study-period mortality), with the Alpha variant wave showing highest average daily deaths (11,325).
+
+### Limitations
+
+1. **Data Heterogeneity**: Reporting quality variations across countries, particularly in low-resource settings.
+2. **Health System Proxies**: Physician density incompletely captures overall health system capacity.
+3. **Time Boundaries**: Analysis limited to 2020-2022, missing later pandemic phases.
+4. **Unmeasured Confounders**: Testing capacity, variant differences, and intervention timing not fully controlled.
+
+### Reliability Assessment
+
+Findings demonstrate varying reliability levels:
+- **High Reliability**: Age structure effects (consistent across multiple regression specifications)
+- **Moderate Reliability**: Population density severity effects (supported by tree methods but potentially confounded)
+- **Lower Reliability**: Health system mediation (mixed signals across analyses, methodological dependencies)
+- **Context-Dependent**: Growth patterns specific to early pandemic phase before interventions
+
+The convergence of age effects across different models (mortality rates and case fatality rates) provides strongest evidence, while health system roles require more nuanced interpretation considering detection-capacity tradeoffs.
+
+## References
+
+**Data:** WHO COVID-19 database, World Bank WDI  
+**Software:** R with tidyverse, rpart, patchwork, viridis, broom packages

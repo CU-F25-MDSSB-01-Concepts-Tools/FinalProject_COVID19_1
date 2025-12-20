@@ -1,0 +1,105 @@
+---
+title: "Your Project Title"
+subtitle: "Put subtitle here if you want or remove if not needed"
+author: 
+  - One Author's Name (REPLACE)
+  - Another Author's Name (REPLACE)
+abstract: "Executive Summary. <!--For the final version: Write an executive summary here. Write it when you are mostly finished with the main report. It should summarize the question, with what data and how you answer it, and what the result is.-->"
+format:   
+  html: 
+    toc: true
+    toc-depth: 3
+    standalone: true
+    embed-resources: true
+    code-fold: true
+    number-sections: true
+---
+
+## Introduction
+
+<!-- 
+In this section describe: 
+- What is the research question(s) you want to answer and why?
+- With what data you want to answer the question?
+- Where does the data come from, how was it collected?
+--> 
+
+This text will be replace by your introduction.
+
+## Data 
+
+### Data Sources and Preparation
+
+### Data Processing Steps
+
+```{r}
+#| label: data-import
+
+library(tidyverse)
+
+Sys.setlocale("LC_TIME", "English")
+
+who <- read_csv("WHO-COVID-19.csv")
+
+# Simple growth analysis for Türkiye, Italy, Germany
+growth_analysis <- who %>%
+  filter(Country %in% c("Türkiye", "Italy", "Germany")) %>%
+  arrange(Country, Date_reported) %>%
+  group_by(Country) %>%
+  mutate(cum_cases = cumsum(New_cases)) %>%
+  filter(cum_cases >= 100) %>%
+  slice(1:14) %>%
+  mutate(day_num = row_number() - 1) %>%
+  summarise(
+    start = first(Date_reported),
+    end = last(Date_reported),
+    initial_cases = first(cum_cases),
+    final_cases = last(cum_cases),
+    growth = coef(lm(log(cum_cases) ~ day_num))[2],
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    doubling = log(2) / growth,
+    daily_pct = (exp(growth) - 1) * 100
+  )
+
+  # Show results
+growth_analysis %>%
+  select(Country, start, end, growth, doubling, daily_pct) %>%
+  mutate(
+    growth = round(growth, 3),
+    doubling = round(doubling, 1),
+    daily_pct = round(daily_pct, 1)
+  ) %>%
+  knitr::kable(
+    caption = "Exponential Growth Rates",
+    col.names = c("Country", "Start", "End", "Growth Rate", "Doubling Days", "Daily %")
+  )
+
+```
+
+## Analysis
+
+```{r}
+#| label: exploratory-analysis
+# Simple plot
+who %>%
+  filter(Country %in% c("Türkiye", "Italy", "Germany")) %>%
+  arrange(Country, Date_reported) %>%
+  group_by(Country) %>%
+  mutate(cum_cases = cumsum(New_cases)) %>%
+  filter(cum_cases >= 100) %>%
+  slice(1:28) %>%
+  ggplot(aes(x = Date_reported, y = cum_cases, color = Country)) +
+  geom_line() +
+  geom_point(size = 1.5) +
+  scale_y_log10() +
+  labs(title = "COVID-19 Growth: First 28 days after 100 cases",
+       x = "Date", y = "Cumulative Cases") +
+  theme_minimal()
+
+```
+
+## Conclusion
+
+Türkiye showed the fastest early growth (0.311 daily, 2.2-day doubling), followed by Italy (0.283, 2.4 days) and Germany (0.271, 2.6 days). The progression from Italy (Feb 24) to Germany (Feb 29) to Türkiye (Mar 19) reflects the pandemic's westward spread. These differences highlight varying early transmission dynamics across the three countries.
