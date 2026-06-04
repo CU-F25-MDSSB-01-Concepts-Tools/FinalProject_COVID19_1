@@ -40,14 +40,8 @@ This project provides an integrated analysis of the COVID-19 pandemic using WHO 
 The full analysis is written in [Quarto](https://quarto.org/) (`.qmd`) and rendered as a self-contained HTML report with interactive code folding and a navigable table of contents.
 
 To reproduce the report locally:
-
-```r
-# Install required packages
-install.packages(c("tidyverse", "rpart", "rpart.plot", "patchwork", "viridis", "broom", "knitr"))
-
-# Render the report
-quarto::quarto_render("index.qmd")
-```
+1- Install required packages
+2- Render the report
 
 > **Note:** The `WHO-COVID-19.csv` and `WDI.csv` data files must be placed in the same directory as `index.qmd` before rendering.
 
